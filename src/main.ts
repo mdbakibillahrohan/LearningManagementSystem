@@ -8,8 +8,8 @@ async function bootstrap() {
 
    // 🔧 Configure Swagger options
   const config = new DocumentBuilder()
-    .setTitle('My NestJS API')
-    .setDescription('API documentation for my project')
+    .setTitle('Learning Managment System')
+    .setDescription('API documentation for Learning Management System')
     .setVersion('1.0')
     .addTag('users') // Optional: for grouping routes
     .build();
