@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { CommonResponse } from 'src/common/dtos/common-response';
 import { ActiveStatus } from 'src/entities/active-status.enum';
 import { User } from 'src/entities/user.entity';
 import { Not, Repository } from 'typeorm';
@@ -16,25 +17,44 @@ export class UsersService {
         return createdUser;
     }
 
-    async userList(skip: number = 0, limit: number = 10, search_text: string | null = null): Promise<User[]> {
-        const search = search_text ? `%${search_text}%` : '%%'; // handle null safely
+    async userList(
+        skip: number = 0,
+        limit: number = 10,
+        search_text: string | null = null
+    ) {
+        const search = search_text ? `%${search_text}%` : null;
 
         const query = `
-                    SELECT * 
-                    FROM users 
-                    WHERE username ILIKE $1 OR email ILIKE $1 OR $1 IS NULL
-                    ORDER BY id DESC
-                    LIMIT $2 OFFSET $3
-                `;
+                        SELECT * 
+                        FROM users
+                        WHERE ($1::text IS NULL OR username ILIKE $1 OR email ILIKE $1)
+                        ORDER BY id DESC
+                        LIMIT $2 OFFSET $3
+                    `;
 
-        return await this.userRepository.query(query, [search, limit, skip]);
+        const countQuery = `
+                            SELECT COUNT(*)::int AS total
+                            FROM users
+                            WHERE ($1::text IS NULL OR username ILIKE $1 OR email ILIKE $1)
+                        `;
+
+        // Run both queries
+        const [data, countResult] = await Promise.all([
+            this.userRepository.query(query, [search, limit, skip]),
+            this.userRepository.query(countQuery, [search]),
+        ]);
+
+        const total = countResult[0]?.total || 0;
+       
+        return {data, total};
     }
+
 
     async findUserById(id: number): Promise<User> {
         return await this.userRepository.findOneByOrFail({ id, active_status: Not(ActiveStatus.DELETED) });
     }
 
-    async findUserByUserName(username:string):Promise<User>{
+    async findUserByUserName(username: string): Promise<User> {
         return this.userRepository.findOneByOrFail({
             username,
             active_status: Not(ActiveStatus.DELETED)
@@ -60,10 +80,10 @@ export class UsersService {
 
     async deleteUser(id: number, deleted_by: number) {
         const foundUser = await this.findUserById(id);
-        if (foundUser) {
-            foundUser.active_status = ActiveStatus.DELETED;
-            await this.userRepository.save(foundUser);
+        if (!foundUser) {
+            throw new NotFoundException();
         }
-        throw new NotFoundException();
+        foundUser.active_status = ActiveStatus.DELETED;
+        await this.userRepository.save(foundUser);
     }
 }
