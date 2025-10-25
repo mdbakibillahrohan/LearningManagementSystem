@@ -2,7 +2,7 @@ import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs
 import { AuthService } from './services/auth/auth.service';
 import { AuthGuard } from '@nestjs/passport';
 import { RegisterDto } from './Dtos/regiser.dto';
-
+import { SignInDto } from './Dtos/signin.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -11,7 +11,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('local'))
   @Post('login')
-  signIn(@Body() signInDto) {
+  signIn(@Body() signInDto:SignInDto) {
     return this.authService.login(signInDto);
   }
 

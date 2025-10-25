@@ -41,9 +41,9 @@ export class RegisterDto {
 
   @ApiProperty({ example: 1, description: 'Gender ID from the genders table' })
   @IsOptional()
-  gender_id?: number;
+  gender_id: number;
 
   @ApiProperty({ example: 2, description: 'User type ID from the user_types table' })
   @IsOptional()
-  user_type_id?: number;
+  user_type_id: number;
 }
