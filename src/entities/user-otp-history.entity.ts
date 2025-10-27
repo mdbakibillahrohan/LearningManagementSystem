@@ -11,12 +11,11 @@ export class UserOtpHistory extends BaseEntity {
     user_id!: number;
 
     @Column({
-        type: 'decimal',
-        precision: 10,
-        scale: 2,
+        type: 'varchar',
+        length: "10",
         nullable: false,
     })
-    otp!: number;
+    otp!: string;
 
     @Column({
         type: 'timestamp',
