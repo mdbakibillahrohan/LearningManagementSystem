@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, QueryRunner } from 'typeorm';
 import { UserOtpHistory } from 'src/entities/user-otp-history.entity';
@@ -48,17 +48,15 @@ export class UserOtpHistoryService {
   async getUserOtpByUserOtpAndType(
     userId: number,
     otpType: 'login' | 'signup' | 'forgot_password',
-    otp: number,
+    otp: string,
   ): Promise<UserOtpHistory | null> {
     try {
       return await this.userOtpHistoryRepository.findOneOrFail({
         where: {
           user_id: userId,
-          otp: otp.toString(),
+          otp: otp,
           otp_type: otpType,
           active_status: ActiveStatus.ACTIVE,
-          is_used: false,
-          is_expired: false,
         },
       });
     } catch {
@@ -72,7 +70,7 @@ export class UserOtpHistoryService {
   async verifyUserOtp(
     userId: number,
     otpType: 'login' | 'signup' | 'forgot_password',
-    otp: number,
+    otp: string,
     queryRunner?: QueryRunner,
   ): Promise<boolean> {
     const manager = queryRunner
@@ -82,14 +80,22 @@ export class UserOtpHistoryService {
     const otpRecord = await this.getUserOtpByUserOtpAndType(userId, otpType, otp);
 
     if (!otpRecord) {
-      return false;
+      throw new NotFoundException("OTP Not found for this user");
+    }
+
+    if(otpRecord.is_expired){
+      throw new BadRequestException("Your OTP has been expired");
+    }
+
+    if(otpRecord.is_used){
+      throw new BadRequestException("Your OTP has been used");
     }
 
     // Check expiry
     if (dayjs().isAfter(otpRecord.expire_time)) {
       otpRecord.is_expired = true;
       await manager.save(UserOtpHistory, otpRecord);
-      return false;
+      throw new BadRequestException("Your OTP has been expired")
     }
 
     // Mark as verified and used

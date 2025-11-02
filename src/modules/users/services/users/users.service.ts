@@ -1,27 +1,29 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not, ILike, QueryRunner } from 'typeorm';
 import { User } from 'src/entities/user.entity';
 import { ActiveStatus } from 'src/entities/active-status.enum';
+import { UserOtpHistoryService } from '../user-otp-history/user-otp-history.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-  ) {}
+    private readonly userOtpHistoryService: UserOtpHistoryService
+  ) { }
 
   // ✅ FIXED: CREATE (Transaction-Ready)
   async createUser(userData: Partial<User>, queryRunner?: QueryRunner): Promise<User> {
-  const manager = queryRunner ? queryRunner.manager : this.userRepository.manager;
+    const manager = queryRunner ? queryRunner.manager : this.userRepository.manager;
 
-  const user = manager.create(User, {  // Pass User class first
-    ...userData,
-    active_status: userData.active_status ?? ActiveStatus.ACTIVE,
-  });
+    const user = manager.create(User, {  // Pass User class first
+      ...userData,
+      active_status: userData.active_status ?? ActiveStatus.ACTIVE,
+    });
 
-  return await manager.save(user);
-}
+    return await manager.save(user);
+  }
 
   // ✅ UPDATE: Transaction-Ready
   async updateUserById(
@@ -31,7 +33,7 @@ export class UsersService {
     queryRunner?: QueryRunner,
   ): Promise<User> {
     const manager = queryRunner ? queryRunner.manager : this.userRepository.manager;
-    
+
     // Find user in transaction context
     const user = await manager.findOne(User, {
       where: { id: userId, active_status: Not(ActiveStatus.DELETED) },
@@ -58,7 +60,7 @@ export class UsersService {
     queryRunner?: QueryRunner,
   ): Promise<void> {
     const manager = queryRunner ? queryRunner.manager : this.userRepository.manager;
-    
+
     const user = await manager.findOne(User, {
       where: { id, active_status: Not(ActiveStatus.DELETED) },
     });
@@ -123,6 +125,16 @@ export class UsersService {
       .orWhere('user.email = :identifier', { identifier })
       .andWhere('user.active_status != :deleted', { deleted: ActiveStatus.DELETED })
       .getOne();
+  }
+
+  async verifyUser(username: string, otp: string): Promise<boolean> {
+    const user = await this.findUserByUsernameOrEmail(username);
+    if (!user) {
+      throw new BadRequestException("User not found");
+    }
+    user.is_verified = true;
+    await this.updateUserById(user.id, user, user.id);
+    return await this.userOtpHistoryService.verifyUserOtp(user.id, "signup", otp)
   }
 
   // Other methods remain unchanged...

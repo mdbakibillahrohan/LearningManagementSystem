@@ -6,10 +6,12 @@ import { User } from 'src/entities/user.entity';
 import { UserLoginHistory } from 'src/entities/user-login-history.entity';
 import { UserOtpHistoryService } from './services/user-otp-history/user-otp-history.service';
 import { UserOtpHistory } from 'src/entities/user-otp-history.entity';
+import { UserController } from './controller/user/user.controller';
 
 @Module({
   imports: [TypeOrmModule.forFeature([User, UserLoginHistory, UserOtpHistory])],
   providers: [UsersService, UsersLoginHistoryService, UserOtpHistoryService],
-  exports: [UsersService, UsersLoginHistoryService, UserOtpHistoryService]
+  exports: [UsersService, UsersLoginHistoryService, UserOtpHistoryService],
+  controllers: [UserController]
 })
 export class UsersModule {}

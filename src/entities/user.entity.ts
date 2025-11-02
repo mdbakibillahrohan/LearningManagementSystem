@@ -49,6 +49,12 @@ export class User extends BaseEntity {
         nullable: false,
     })
     password!: string;
+    @Column({
+        type: 'boolean',
+        nullable: false,
+        default: false
+    })
+    is_verified:boolean;
 
     @ManyToOne(type => UserType)
     @JoinColumn({ name: 'user_type_id' })

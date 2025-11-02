@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { User } from 'src/entities/user.entity';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from 'src/modules/users/services/users/users.service';
@@ -8,6 +8,7 @@ import dayjs from 'dayjs';
 import { ActiveStatus } from 'src/entities/active-status.enum';
 import { UserOtpHistoryService } from 'src/modules/users/services/user-otp-history/user-otp-history.service';
 import { DataSource, QueryRunner } from 'typeorm';
+import { MailService } from 'src/modules/mail/services/mail/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -16,12 +17,16 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly userOtpHistoryService: UserOtpHistoryService,
     private readonly dataSource: DataSource, // Inject DataSource
-  ) {}
+    private readonly mailService: MailService
+  ) { }
 
   async validateUser(username: string, password: string): Promise<User> {
     const user = await this.usersService.findUserByUsernameOrEmail(username);
     if (!user) {
       throw new BadRequestException('User not found');
+    }
+    if(!user.is_verified){
+      throw new ForbiddenException("User is not verified");
     }
     const isMatch: boolean = bcrypt.compareSync(password, user.password);
     if (!isMatch) {
@@ -77,17 +82,28 @@ export class AuthService {
       newUser = await this.usersService.createUser(userData, queryRunner);
 
       // 5. Generate OTP in same transaction
-      await this.userOtpHistoryService.generateUserOtp(
+      const generatedOtp = await this.userOtpHistoryService.generateUserOtp(
         newUser.id,
         'signup',
         queryRunner,
       );
 
+      // Sending confirmation email
+      const subject = "Account Confirmation";
+      const message = `Dear ${newUser.first_name},\n\nYour OTP for account verification is: ${generatedOtp.otp}\n\nPlease use this OTP to complete your registration.\n\nThank you,\nSupport Team`;
+
+      await this.mailService.sendEmail(
+        newUser.email,
+        subject,
+        message
+      );
       // 6. Commit
       await queryRunner.commitTransaction();
 
       // 7. Return JWT
-      return this.login(newUser);
+      return {
+        message: "Successfully created the account. Please verify your account"
+      };
     } catch (error) {
       // Rollback on any error
       await queryRunner.rollbackTransaction();
