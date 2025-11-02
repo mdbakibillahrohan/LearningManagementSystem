@@ -13,13 +13,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 
 @Module({
   imports: [
-    // Load .env globally
+    // Load environment variables dynamically
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: process.env.NODE_ENV === 'production' ? '.env.production' : '.env',
     }),
 
-    // TypeORM with async config + SSL only in production
+    // TypeORM Config
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
@@ -28,19 +28,16 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         return {
           type: 'postgres' as const,
           host: configService.get<string>('DB_HOST'),
-          port: configService.get<number>('DB_PORT'),
+          port: Number(configService.get<number>('DB_PORT')),
           username: configService.get<string>('DB_USERNAME'),
           password: configService.get<string>('DB_PASSWORD'),
           database: configService.get<string>('DB_DATABASE'),
           entities: [__dirname + '/**/*.entity{.ts,.js}'],
-          synchronize: !isProd, // Auto-sync only in development
-          logging: !isProd,
+          synchronize: true,
+          logging: false,
           ...(isProd && {
-            ssl: true,
-            extra: {
-              ssl: {
-                rejectUnauthorized: true,
-              },
+            ssl: {
+              rejectUnauthorized: false, // often needed for Neon / Railway
             },
           }),
         };
@@ -48,7 +45,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       inject: [ConfigService],
     }),
 
-    // Mailer with async config + secure TLS in production
+    // Mailer Config
     MailerModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
@@ -57,14 +54,14 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         return {
           transport: {
             host: configService.get<string>('EMAIL_HOST'),
-            port: configService.get<number>('EMAIL_PORT'),
-            secure: configService.get<boolean>('EMAIL_SECURE'), // false for 587, true for 465
+            port: Number(configService.get<number>('EMAIL_PORT')),
+            secure: configService.get<boolean>('EMAIL_SECURE'),
             auth: {
               user: configService.get<string>('EMAIL_USER'),
               pass: configService.get<string>('EMAIL_PASS'),
             },
             tls: {
-              rejectUnauthorized: isProd, // true in prod, false in dev
+              rejectUnauthorized: isProd,
             },
           },
           defaults: {
@@ -75,7 +72,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       inject: [ConfigService],
     }),
 
-    // Your feature modules
+    // Feature Modules
     AuthModule,
     UsersModule,
     MailModule,
@@ -93,11 +90,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 export class AppModule {
   constructor(private configService: ConfigService) {
     const env = this.configService.get<string>('NODE_ENV');
-    const emailHost = this.configService.get<string>('EMAIL_HOST');
+    const dbHost = this.configService.get<string>('DB_HOST');
     console.log(`[AppModule] Running in: ${env}`);
-    console.log(`[AppModule] Email Host: ${emailHost}`);
+    console.log(`[AppModule] Using DB Host: ${dbHost}`);
     if (env === 'production') {
-      console.log('[AppModule] SSL/TLS enabled for DB and Email');
+      console.log('[AppModule] Using .env.production file (SSL enabled)');
+    } else {
+      console.log('[AppModule] Using .env file (local)');
     }
   }
 }
