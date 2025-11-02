@@ -55,14 +55,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
           transport: {
             host: configService.get<string>('EMAIL_HOST'),
             port: Number(configService.get<number>('EMAIL_PORT')),
-            secure: configService.get<boolean>('EMAIL_SECURE'),
             auth: {
               user: configService.get<string>('EMAIL_USER'),
               pass: configService.get<string>('EMAIL_PASS'),
             },
-            tls: {
-              rejectUnauthorized: isProd,
-            },
+            
           },
           defaults: {
             from: configService.get<string>('EMAIL_FROM'),
