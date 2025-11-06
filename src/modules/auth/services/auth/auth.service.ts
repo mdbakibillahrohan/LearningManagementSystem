@@ -76,27 +76,28 @@ export class AuthService {
         active_status: ActiveStatus.ACTIVE,
         user_type_id: user.user_type_id!,
         password: hashedPassword,
+        is_verified: true,
       };
 
       // 4. Save user in transaction
       newUser = await this.usersService.createUser(userData, queryRunner);
 
       // 5. Generate OTP in same transaction
-      const generatedOtp = await this.userOtpHistoryService.generateUserOtp(
-        newUser.id,
-        'signup',
-        queryRunner,
-      );
+      // const generatedOtp = await this.userOtpHistoryService.generateUserOtp(
+      //   newUser.id,
+      //   'signup',
+      //   queryRunner,
+      // );
 
       // Sending confirmation email
-      const subject = "Account Confirmation";
-      const message = `Dear ${newUser.first_name},\n\nYour OTP for account verification is: ${generatedOtp.otp}\n\nPlease use this OTP to complete your registration.\n\nThank you,\nSupport Team`;
+      // const subject = "Account Confirmation";
+      // const message = `Dear ${newUser.first_name},\n\nYour OTP for account verification is: ${generatedOtp.otp}\n\nPlease use this OTP to complete your registration.\n\nThank you,\nSupport Team`;
 
-      await this.mailService.sendEmail(
-        newUser.email,
-        subject,
-        message
-      );
+      // await this.mailService.sendEmail(
+      //   newUser.email,
+      //   subject,
+      //   message
+      // );
       // 6. Commit
       await queryRunner.commitTransaction();
 

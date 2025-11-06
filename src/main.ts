@@ -20,7 +20,6 @@ async function bootstrap() {
   // 🌐 Setup Swagger UI route
   SwaggerModule.setup('api', app, document);
 
-  console.log("PORT IS ",process.env.PORT)
 
   await app.listen(process.env.PORT ?? 4000);
 }
